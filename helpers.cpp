@@ -124,7 +124,8 @@ std::array<float, 3> Helpers::getBarycentricCoordinates(
     // If denom is close to zero, triangle or area is degenerate
     if (denom == 0.0f) {
         // Return something indicative of failure or degenerate triangle
-        return { -1.0f, -1.0f, -1.0f };
+        // return { -1.0f, -1.0f, -1.0f };
+        denom = 1.0f;
     }
 
     // Calculate barycentric coordinates

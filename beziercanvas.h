@@ -15,10 +15,13 @@ public:
     bool isFilled = false;
     QColor fillColor = Qt::magenta;
     Mesh mesh;
+    Mesh pyramid;
     PhongLighting phongLighting;
     QTimer* timer = new QTimer();
     QImage normalMap;
     bool loadedMap = false;
+    std::vector<std::vector<float>> zBuffer = std::vector<std::vector<float>>(size().width(), std::vector<float>(size().height(), std::numeric_limits<float>::min()));
+    std::mutex zBufferMutex;
 
     BezierCanvas(QWidget *parent = nullptr);
 

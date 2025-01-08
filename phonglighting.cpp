@@ -15,6 +15,7 @@ QColor PhongLighting::calculateColor(const Vector3 &normal, const Vector3 &point
     L.normalize();
 
     // 3) Define V = (0, 0, 1) as the view direction (user’s perspective)
+    // Vector3 V = {0.0f - point.x, 0.0f - point.y, 1.0f - point.z};
     Vector3 V = {0.0f, 0.0f, 1.0f};
     V.normalize();
 

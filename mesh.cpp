@@ -9,6 +9,59 @@ void Mesh::addTriangle(const Triangle &triangle) {
     triangles.push_back(triangle);
 }
 
+void Mesh::generatePyramid()
+{
+    std::vector<Vector3> points = {
+        Vector3(-1.0, -1.0, 0.0),
+        Vector3(-1.0, 1.0, 0.0),
+        Vector3(1.0, 1.0, 0.0),
+        Vector3(1.0, -1.0, 0.0),
+        Vector3(0.0, 0.0, 7.0)
+    };
+
+    for (int i = 0; i < points.size(); i++)
+    {
+        points[i] = points[i] * 90;
+    }
+
+    addTriangle(pyramidTriangle(points[0], points[1], points[2]));
+    addTriangle(pyramidTriangle(points[2], points[3], points[0]));
+
+    addTriangle(pyramidTriangle(points[0], points[1], points[4]));
+    addTriangle(pyramidTriangle(points[1], points[2], points[4]));
+    addTriangle(pyramidTriangle(points[2], points[3], points[4]));
+    addTriangle(pyramidTriangle(points[3], points[0], points[4]));
+
+    this->rotateMesh(15, 15);
+
+    //Calculate normals and Pu and Pv
+}
+
+Triangle Mesh::pyramidTriangle(Vector3 p1, Vector3 p2, Vector3 p3)
+{
+    Vertex v1, v2, v3;
+
+    v1.P_before = p1;
+    v2.P_before = p2;
+    v3.P_before = p3;
+
+    v1.Pu_before = p2 - p1;
+    v1.Pv_before = p3 - p1;
+
+    v2.Pu_before = p3 - p2;
+    v2.Pv_before = p1 - p2;
+
+    v3.Pu_before = p1 - p3;
+    v3.Pv_before = p2 - p3;
+
+    v1.N_before = v1.Pu_before.cross(v1.Pv_before);
+    v2.N_before = v2.Pu_before.cross(v2.Pv_before);
+    v3.N_before = v3.Pu_before.cross(v3.Pv_before);
+
+    return Triangle(v1, v2, v3);
+}
+
+
 // Funkcja generująca siatkę triangulowaną na podstawie powierzchni Béziera
 void Mesh::generateMesh(const std::vector<Vector3> &controlPoints, const int &resolution) {
     if (controlPoints.size() != 16) {

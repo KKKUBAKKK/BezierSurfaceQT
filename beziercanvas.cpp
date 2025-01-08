@@ -4,6 +4,7 @@
 
 #include <QPainter>
 #include <QtConcurrent/qtconcurrentmap.h>
+#include <iostream>
 #include <vector>
 #include <algorithm>
 #include <QImage>
@@ -14,6 +15,8 @@
 
 BezierCanvas::BezierCanvas(QWidget *parent) : QWidget(parent) {
     setMinimumSize(600, 600);  // Ustaw minimalny rozmiar dla powierzchni Béziera
+
+    pyramid.generatePyramid();
 
     // Connect the timer's timeout signal to the myMethod slot
     connect(timer, &QTimer::timeout, this, &BezierCanvas::updateLightPosition);
@@ -33,6 +36,8 @@ void BezierCanvas::paintEvent(QPaintEvent *event) {
     // Create a QImage with the same dimensions
     QImage image(size, QImage::Format_ARGB32);
     image.fill(Qt::darkGray);
+
+    zBuffer = std::vector<std::vector<float>>(size.width(), std::vector<float>(size.height(), - std::numeric_limits<float>::max()));
 
     if (isFilled) {
         // fillMesh(image);
@@ -61,6 +66,16 @@ void BezierCanvas::drawMesh(QPainter &painter) {
         // }
 
         // Rysujemy linie między wierzchołkami trójkąta
+        QPointF p1(triangle.vertices[0].P_after.x, triangle.vertices[0].P_after.y);
+        QPointF p2(triangle.vertices[1].P_after.x, triangle.vertices[1].P_after.y);
+        QPointF p3(triangle.vertices[2].P_after.x, triangle.vertices[2].P_after.y);
+
+        painter.drawLine(p1, p2);
+        painter.drawLine(p2, p3);
+        painter.drawLine(p3, p1);
+    }
+
+    for (const auto &triangle : pyramid.triangles) {
         QPointF p1(triangle.vertices[0].P_after.x, triangle.vertices[0].P_after.y);
         QPointF p2(triangle.vertices[1].P_after.x, triangle.vertices[1].P_after.y);
         QPointF p3(triangle.vertices[2].P_after.x, triangle.vertices[2].P_after.y);
@@ -116,6 +131,26 @@ void BezierCanvas::fillMeshParallel(QImage &image) {
     // Wait for all tasks to finish
     for (auto &f : futures) {
         f.wait();
+    }
+
+    std::vector<QColor> colors = {
+        Qt::red,
+        Qt::red,
+        Qt::blue,
+        Qt::green,
+        Qt::yellow
+    };
+
+    for (int i = 0; i < pyramid.triangles.size(); i++)
+    {
+        std::vector<Vertex> vertices = {
+            pyramid.triangles[i].vertices[0],
+            pyramid.triangles[i].vertices[1],
+            pyramid.triangles[i].vertices[2]
+        };
+
+
+        scanLineFillPolygon(image, vertices, colors[i]);
     }
 }
 
@@ -289,10 +324,16 @@ void BezierCanvas::scanLineFillPolygon(QImage &image, const std::vector<Vertex> 
                     // triangle P_after.x, P_after.y are in a (0,0) = center system
                     float z = Helpers::interpolate(triangle, interpolatedNormal, localX, localY);
                     // interpolatedNormal = interpolatedNormal * -1;
+                    std::lock_guard<std::mutex> lock(zBufferMutex);
+                    if (z > zBuffer[(int) drawX][(int) drawY])
+                    {
+                        // std::lock_guard<std::mutex> lock(zBufferMutex);
+                        zBuffer[(int) drawX][(int) drawY] = z;
 
-                    Vector3 interpolatedPoint(localX, localY, z);
-                    QColor color = phongLighting.calculateColor(interpolatedNormal, interpolatedPoint, fillColor);
-                    image.setPixelColor(drawX, drawY, color);
+                        Vector3 interpolatedPoint(localX, localY, z);
+                        QColor color = phongLighting.calculateColor(interpolatedNormal, interpolatedPoint, fillColor);
+                        image.setPixelColor(drawX, drawY, color);
+                    }
                 }
             }
         }
@@ -347,5 +388,7 @@ void BezierCanvas::updateLightPosition() {
         // phongLighting.lightPos.z = 1.0f;  // keep it slightly above, for example
         this->update();
     }
+    // pyramid.rotateMesh(5, 5);
+    // this->update();
     timer->start(TIME_INTERVAL);
 }

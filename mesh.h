@@ -25,6 +25,8 @@ public:
     void generateMesh(const std::vector<Vector3> &controlPoints, const int &resolution);
     void rotateMesh(float alpha, float beta);
     void applyNormalMap(const QImage &normalMap);
+    void generatePyramid();
+    Triangle pyramidTriangle(Vector3 p1, Vector3 p2, Vector3 p3);
 
 };
 
