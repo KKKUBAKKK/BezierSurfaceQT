@@ -17,7 +17,7 @@ BezierCanvas::BezierCanvas(QWidget *parent) : QWidget(parent) {
 
     // Connect the timer's timeout signal to the myMethod slot
     connect(timer, &QTimer::timeout, this, &BezierCanvas::updateLightPosition);
-    timer->start(100);
+    timer->start(TIME_INTERVAL);
 }
 
 void BezierCanvas::paintEvent(QPaintEvent *event) {
@@ -45,7 +45,7 @@ void BezierCanvas::paintEvent(QPaintEvent *event) {
         drawMesh(painter);
     }
 
-    drawInterpolatedNormals(painter, mesh.triangles);
+    // drawInterpolatedNormals(painter, mesh.triangles);
 }
 
 void BezierCanvas::drawMesh(QPainter &painter) {
@@ -274,20 +274,6 @@ void BezierCanvas::scanLineFillPolygon(QImage &image, const std::vector<Vertex> 
 
             // Draw the spans if within image horizontal range
             for (int x = xStart; x <= xEnd; ++x) {
-                // // Compute final image coords
-                // int drawX = x + (width / 2);       // Center X
-                // int drawY = row + minY + (height / 2); // Center Y based on polygon minY
-
-                // // Check image bounds
-                // if (drawX >= 0 && drawX < width && drawY >= 0 && drawY < height) {
-                //     Vector3 interpolatedNormal;
-
-                //     Helpers::interpolate(triangle, interpolatedNormal, drawX, drawY);
-
-                //     QColor color = phongLighting.calculateColor(interpolatedNormal, fillColor);
-
-                //     image.setPixelColor(drawX, drawY, color);
-                // }
 
                 int drawX = x + (width / 2);
                 int drawY = row - offsetY + (height / 2);
@@ -301,10 +287,11 @@ void BezierCanvas::scanLineFillPolygon(QImage &image, const std::vector<Vertex> 
 
                     // Now call interpolate() using localX, localY if your
                     // triangle P_after.x, P_after.y are in a (0,0) = center system
-                    Helpers::interpolate(triangle, interpolatedNormal, localX, localY);
+                    float z = Helpers::interpolate(triangle, interpolatedNormal, localX, localY);
                     // interpolatedNormal = interpolatedNormal * -1;
 
-                    QColor color = phongLighting.calculateColor(interpolatedNormal, fillColor);
+                    Vector3 interpolatedPoint(localX, localY, z);
+                    QColor color = phongLighting.calculateColor(interpolatedNormal, interpolatedPoint, fillColor);
                     image.setPixelColor(drawX, drawY, color);
                 }
             }
@@ -344,6 +331,10 @@ void BezierCanvas::drawInterpolatedNormals(QPainter& painter,
         // Draw the line representing the normal
         painter.drawLine(QPointF(cx, cy), QPointF(ex, ey));
     }
+
+    painter.setPen(Qt::yellow);
+    painter.drawEllipse(phongLighting.lightPos.x, phongLighting.lightPos.y, 10, 10);
+    painter.setPen(Qt::red);
 }
 
 // Call each frame or render iteration to optionally update the light position
@@ -356,5 +347,5 @@ void BezierCanvas::updateLightPosition() {
         // phongLighting.lightPos.z = 1.0f;  // keep it slightly above, for example
         this->update();
     }
-    timer->start(100);
+    timer->start(TIME_INTERVAL);
 }

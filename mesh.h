@@ -1,6 +1,7 @@
 #ifndef MESH_H
 #define MESH_H
 
+#include <QImage>
 #include <vector>
 #include "triangle.h"
 #include "vector3.h"
@@ -23,6 +24,7 @@ public:
     void generateMesh(const int &resolution);
     void generateMesh(const std::vector<Vector3> &controlPoints, const int &resolution);
     void rotateMesh(float alpha, float beta);
+    void applyNormalMap(const QImage &normalMap);
 
 };
 

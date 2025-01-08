@@ -22,6 +22,7 @@ class BezierSurface : public QMainWindow
 public:
     BezierSurface(QWidget *parent = nullptr);
     void loadFile();
+    void loadMap();
     ~BezierSurface();
     void updateAlpha(int value);
     void updateBeta(int value);
@@ -36,6 +37,7 @@ public:
     void updateM(int value);
     void updateLightSpiralMode(int state);
     void updateReflectorsMode(int state);
+    void updateZ(int value);
 
 private:
     Ui::BezierSurface *ui;
@@ -49,6 +51,7 @@ private:
     QSlider *kdSlider;
     QSlider *ksSlider;
     QSlider *mSlider;
+    QSlider *zSlider;
     QCheckBox *fillSurfaceCheckBox;
     QCheckBox *drawModeCheckbox;
     QCheckBox *lightSpiralCheckbox;
@@ -56,5 +59,6 @@ private:
     QPushButton *surfaceColorBtn;
     QPushButton *lightColorBtn;
     QPushButton *loadFileButton;
+    QPushButton *loadMapButton;
 };
 #endif // BEZIERSURFACE_H

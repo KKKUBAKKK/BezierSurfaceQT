@@ -40,14 +40,14 @@ BezierSurface::BezierSurface(QWidget *parent)
 
     // Suwak do kąta alfa
     alphaSlider = new QSlider(Qt::Horizontal, this);
-    alphaSlider->setRange(-90, 90);
+    alphaSlider->setRange(-45, 45);
     alphaSlider->setValue(0);  // Domyślna wartość
     controlLayout->addWidget(new QLabel("Kąt alfa", this));
     controlLayout->addWidget(alphaSlider);
 
     // Suwak do kąta beta
     betaSlider = new QSlider(Qt::Horizontal, this);
-    betaSlider->setRange(-90, 90);
+    betaSlider->setRange(-45, 45);
     betaSlider->setValue(0);  // Domyślna wartość
     controlLayout->addWidget(new QLabel("Kąt beta", this));
     controlLayout->addWidget(betaSlider);
@@ -70,6 +70,12 @@ BezierSurface::BezierSurface(QWidget *parent)
     controlLayout->addWidget(new QLabel("m", this));
     controlLayout->addWidget(mSlider);
 
+    zSlider = new QSlider(Qt::Horizontal, this);
+    zSlider->setRange(10, 500);
+    zSlider->setValue(100);
+    controlLayout->addWidget(new QLabel("z", this));
+    controlLayout->addWidget(zSlider);
+
     fillSurfaceCheckBox = new QCheckBox("Wypełnij siatkę", this);
     fillSurfaceCheckBox->setChecked(false); // default to unchecked
     controlLayout->addWidget(fillSurfaceCheckBox);
@@ -87,16 +93,20 @@ BezierSurface::BezierSurface(QWidget *parent)
     reflectorsCheckbox->setChecked(false);
     controlLayout->addWidget(reflectorsCheckbox);
 
-    surfaceColorBtn = new QPushButton("Pick Surface Color", this);
+    surfaceColorBtn = new QPushButton("Kolor powierzchni", this);
     controlLayout->addWidget(surfaceColorBtn);
 
-    lightColorBtn   = new QPushButton("Pick Light Color", this);
+    lightColorBtn   = new QPushButton("Kolor światła", this);
     controlLayout->addWidget(lightColorBtn);
 
     // Przycisk do wczytywania pliku z danymi powierzchni Béziera
-    loadFileButton = new QPushButton("Wczytaj plik", this);
+    loadFileButton = new QPushButton("Wczytaj punkty kontrolne", this);
     connect(loadFileButton, &QPushButton::clicked, this, &BezierSurface::loadFile);
     controlLayout->addWidget(loadFileButton);
+
+    loadMapButton = new QPushButton("Wczytaj wektory normalne", this);
+    connect(loadMapButton, &QPushButton::clicked, this, &BezierSurface::loadMap);
+    controlLayout->addWidget(loadMapButton);
 
     mainLayout->addWidget(controlPanel);
 
@@ -105,6 +115,9 @@ BezierSurface::BezierSurface(QWidget *parent)
 
     // Connect the beta slider to the updateBeta slot
     connect(betaSlider, &QSlider::valueChanged, this, &BezierSurface::updateBeta);
+
+    // Connect the z slider to the updateZ slot
+    connect(zSlider, &QSlider::valueChanged, this, &BezierSurface::updateZ);
 
     // Connect the checkbox signal to the drawMode slot
     connect(drawModeCheckbox, &QCheckBox::checkStateChanged, this, &BezierSurface::drawMode);
@@ -136,8 +149,18 @@ BezierSurface::BezierSurface(QWidget *parent)
     // Connect the fill checkbox to the fillMode slot
     connect(reflectorsCheckbox, &QCheckBox::checkStateChanged, this, &BezierSurface::updateReflectorsMode);
 
+    // Connect the load map button to the loadMap slot
+    connect(loadMapButton, &QPushButton::clicked, this, &BezierSurface::loadMap);
+
     // Set default surface
     setDefaultSurface("/Users/jakubkindracki/QtProjects/BezierSurface/mesh_coordinates_0.txt");
+}
+
+// This slot updates the z value (height of light source)
+void BezierSurface::updateZ(int value)
+{
+    bezierCanvas->phongLighting.lightPos.z = value;
+    this->bezierCanvas->update();
 }
 
 // This slot updates the variables that control spiral mode
@@ -201,6 +224,15 @@ void BezierSurface::chooseLightColor() {
 void BezierSurface::fillMode(int state)
 {
     bezierCanvas->isFilled = (state == Qt::Checked);
+    if (!bezierCanvas->isFilled)
+    {
+        bezierCanvas->phongLighting.movingLight = false;
+        lightSpiralCheckbox->setChecked(false);
+        bezierCanvas->phongLighting.lightPos = Vector3(0, 0, 1);
+
+        bezierCanvas->isVisible = true;
+        drawModeCheckbox->setChecked(true);
+    }
     this->bezierCanvas->update();
 }
 
@@ -219,7 +251,13 @@ void BezierSurface::updateResolution(int value)
 void BezierSurface::drawMode(int state)
 {
     bezierCanvas->isVisible = (state == Qt::Checked);
+    if (!bezierCanvas->isVisible)
+    {
+        bezierCanvas->isFilled = true;
+        fillSurfaceCheckBox->setChecked(true);
+    }
     this->bezierCanvas->update();
+
 }
 
 // This slot updates alpha, rotates the mesh, and triggers a repaint
@@ -248,6 +286,38 @@ void BezierSurface::updateBeta(int value)
     this->bezierCanvas->mesh.rotateMesh(alpha, beta);
 
     this->bezierCanvas->update();
+}
+
+void BezierSurface::loadMap() {
+    // Open a file dialog to choose an image (normal map)
+    QString QfileName = QFileDialog::getOpenFileName(
+        this,
+        "Wybierz plik z mapą wektorów normalnych",
+        "",
+        "Image Files (*.png *.jpg *.jpeg *.bmp);;All Files (*)"
+        );
+
+    if (!QfileName.isEmpty()) {
+        // Create a QImage and load the selected file
+        QImage loadedNormalMap;
+        if (!loadedNormalMap.load(QfileName)) {
+            std::cerr << "Nie można wczytać obrazu: " << QfileName.toStdString() << std::endl;
+            return;
+        }
+
+        // Convert to a known format (ARGB) for consistency
+        loadedNormalMap = loadedNormalMap.convertToFormat(QImage::Format_ARGB32);
+
+        // Store the normal map in your application (e.g., as a member of BezierCanvas)
+        // Make sure BezierCanvas has a QImage normalMap (or similar) you can assign to
+        this->bezierCanvas->normalMap = loadedNormalMap;
+        this->bezierCanvas->loadedMap = true;
+
+        bezierCanvas->mesh.applyNormalMap(bezierCanvas->normalMap);
+
+        // Optionally repaint or update to use the new normal map in your drawing
+        this->bezierCanvas->update();
+    }
 }
 
 void BezierSurface::loadFile() {

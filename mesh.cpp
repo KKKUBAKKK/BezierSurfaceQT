@@ -2,6 +2,9 @@
 #include "helpers.h"
 #include "bezierinterpolation.h"
 
+#include <QImage>
+
+
 void Mesh::addTriangle(const Triangle &triangle) {
     triangles.push_back(triangle);
 }
@@ -106,4 +109,104 @@ void Mesh::rotateMesh(float alpha, float beta) {
             vertex.N_after = vertex.N_after.transformPoint(rotationX);
         }
     }
+}
+
+// Example 3x3 matrix class or struct for convenience
+// You can use your own matrix library or implement a similar structure
+struct Matrix3 {
+    float m[3][3];
+
+    // Multiplies a Vector3 by this 3x3 matrix
+    Vector3 multiply(const Vector3 &v) const {
+        return Vector3(
+            m[0][0] * v.x + m[0][1] * v.y + m[0][2] * v.z,
+            m[1][0] * v.x + m[1][1] * v.y + m[1][2] * v.z,
+            m[2][0] * v.x + m[2][1] * v.y + m[2][2] * v.z
+            );
+    }
+};
+
+// Helper function to build a 3x3 rotation/transform matrix
+// given Pu, Pv, and the surface normal (Nsurface).
+Matrix3 buildMatrix3(const Vector3 &Pu, const Vector3 &Pv, const Vector3 &Nsurface) {
+    Matrix3 MM;
+    // Each column is one of the vectors (assuming column-major):
+    // MM = [ Pu  Pv  Nsurface ]
+    // If you prefer row-major, store them accordingly.
+    MM.m[0][0] = Pu.x;   MM.m[0][1] = Pv.x;   MM.m[0][2] = Nsurface.x;
+    MM.m[1][0] = Pu.y;   MM.m[1][1] = Pv.y;   MM.m[1][2] = Nsurface.y;
+    MM.m[2][0] = Pu.z;   MM.m[2][1] = Pv.z;   MM.m[2][2] = Nsurface.z;
+    return MM;
+}
+
+void Mesh::applyNormalMap(const QImage &normalMap) {
+    // For each triangle in this mesh, and each vertex, we sample
+    // from the normalMap to get a 'normal texture vector' (Ntekstury).
+    // Then we combine it with the surface-based matrix M
+    // to get a modified normal.
+
+    for (auto &triangle : triangles) {
+        // For each vertex in the triangle:
+        for (auto &vertex : triangle.vertices) {
+            // Compute the surface normal (Nsurface) once per triangle or per vertex,
+            // depending on your existing data. This is just a simple example
+            // using cross product for demonstration:
+            Vector3 surfaceNormal = vertex.N_before;
+            surfaceNormal.normalize();
+
+            // You may also have tangents (Pu) and bitangents (Pv) from your geometry pipeline.
+            // Here we assume you have them stored or can compute them.
+            // For illustration, let's just pick some arbitrary tangents:
+            Vector3 Pu = vertex.Pu_before;
+            Vector3 Pv = vertex.Pv_before;
+            Pu.normalize();
+            Pv.normalize();
+
+            // Build the matrix M = [Pu, Pv, Nsurface]
+            Matrix3 MM = buildMatrix3(Pu, Pv, surfaceNormal);
+
+            // (1) Extract or compute texture coordinates for this vertex.
+            //     This is just an example. Actual (u,v) depend on your model.
+            float u = vertex.u; // Must be in [0..1] range typically
+            float v = vertex.v; // Must be in [0..1] range typically
+
+            // Convert (u,v) to pixel coordinates in the normal map
+            int texX = static_cast<int>(u * (normalMap.width()  - 1));
+            int texY = static_cast<int>((1.0f - v) * (normalMap.height() - 1));
+            // The (1.0f - v) flips y if your texture coordinates have origin at the bottom
+
+            // Clamp to valid range
+            if (texX < 0) texX = 0;
+            if (texX >= normalMap.width()) texX = normalMap.width() - 1;
+            if (texY < 0) texY = 0;
+            if (texY >= normalMap.height()) texY = normalMap.height() - 1;
+
+            // (2) Get color from the normal map
+            QColor color = normalMap.pixelColor(texX, texY);
+
+            // (3) Convert color [0..255] to [-1..1] range
+            float Nx = (color.redF()   * 2.0f) - 1.0f;  // redF() in [0..1]
+            float Ny = (color.greenF() * 2.0f) - 1.0f;
+            float Nz = (color.blueF()  * 2.0f) - 1.0f;
+            // Ensure Nz is positive if you want outward-facing
+            // According to the note, Blue is 128..255 => Nz is in [0..1].
+            // If it becomes negative, you can clamp or invert:
+            if (Nz < 0.0f) {
+                Nz = 0.0f;
+            }
+
+            // (4) Build the normal vector from the normal map
+            Vector3 Ntexture(Nx, Ny, Nz);
+            Ntexture.normalize();
+
+            // (5) Multiply by M to transform this normal into the surface basis
+            Vector3 modifiedNormal = MM.multiply(Ntexture);
+            modifiedNormal.normalize();
+
+            // (6) Store the modified normal back in the vertex or use it in shading
+            vertex.N_before = modifiedNormal;
+        }
+    }
+
+    rotateMesh(alpha, beta);
 }

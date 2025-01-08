@@ -5,6 +5,8 @@
 #include "mesh.h"
 #include "phonglighting.h"
 
+#define TIME_INTERVAL 5
+
 class BezierCanvas : public QWidget {
     Q_OBJECT
 
@@ -15,6 +17,8 @@ public:
     Mesh mesh;
     PhongLighting phongLighting;
     QTimer* timer = new QTimer();
+    QImage normalMap;
+    bool loadedMap = false;
 
     BezierCanvas(QWidget *parent = nullptr);
 

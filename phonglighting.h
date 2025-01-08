@@ -25,15 +25,15 @@ public:
         : kd(0.5f), ks(0.5f), m(50),
         lightColor(Qt::white),  // default to white
         movingLight(false),
-        lightPos{0.0f, 0.0f, 1.0f},
+        lightPos{0.0f, 0.0f, 100.0f},
         spiralAngle(0.0f),
-        spiralRadius(1.0f),
+        spiralRadius(100.0f),
         reflectors(false) {}
 
     // Calculate the Phong lighting for a fragment/pixel
     // normal - the interpolated surface normal (e.g., via barycentric coords)
     // objectColor - the base color of the object for this pixel
-    QColor calculateColor(const Vector3 &normal, const QColor &objectColor) const;
+    QColor calculateColor(const Vector3 &normal, const Vector3 &point, const QColor &objectColor) const;
 private:
 };
 

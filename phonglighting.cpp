@@ -5,13 +5,13 @@
 // Calculate the Phong lighting for a fragment/pixel
 // normal - the interpolated surface normal (e.g., via barycentric coords)
 // objectColor - the base color of the object for this pixel
-QColor PhongLighting::calculateColor(const Vector3 &normal, const QColor &objectColor) const {
+QColor PhongLighting::calculateColor(const Vector3 &normal, const Vector3 &point, const QColor &objectColor) const {
     // 1) Normalize the surface normal
     Vector3 N = normal;
     N.normalize();
 
     // 2) Compute L: vector from the surface point to the light
-    Vector3 L = {lightPos.x, lightPos.y, lightPos.z};
+    Vector3 L = {lightPos.x - point.x, lightPos.y - point.y, lightPos.z - point.z};
     L.normalize();
 
     // 3) Define V = (0, 0, 1) as the view direction (user’s perspective)
