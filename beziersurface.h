@@ -23,6 +23,9 @@ public:
     BezierSurface(QWidget *parent = nullptr);
     void loadFile();
     void loadMap();
+    void loadTexture();
+    void turnOffMap();
+    void turnOffTexture();
     ~BezierSurface();
     void updateAlpha(int value);
     void updateBeta(int value);
@@ -37,6 +40,7 @@ public:
     void updateM(int value);
     void updateLightSpiralMode(int state);
     void updateReflectorsMode(int state);
+    void updatePyramidMode(int state);
     void updateZ(int value);
 
 private:
@@ -56,9 +60,13 @@ private:
     QCheckBox *drawModeCheckbox;
     QCheckBox *lightSpiralCheckbox;
     QCheckBox *reflectorsCheckbox;
+    QCheckBox *pyramidCheckbox;
     QPushButton *surfaceColorBtn;
     QPushButton *lightColorBtn;
     QPushButton *loadFileButton;
     QPushButton *loadMapButton;
+    QPushButton *loadTextureButton;
+    QPushButton *turnOffNormalMapButton;
+    QPushButton *turnOffTextureButton;
 };
 #endif // BEZIERSURFACE_H

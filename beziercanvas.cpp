@@ -4,7 +4,6 @@
 
 #include <QPainter>
 #include <QtConcurrent/qtconcurrentmap.h>
-#include <iostream>
 #include <vector>
 #include <algorithm>
 #include <QImage>
@@ -37,7 +36,7 @@ void BezierCanvas::paintEvent(QPaintEvent *event) {
     QImage image(size, QImage::Format_ARGB32);
     image.fill(Qt::darkGray);
 
-    zBuffer = std::vector<std::vector<float>>(size.width(), std::vector<float>(size.height(), - std::numeric_limits<float>::max()));
+    zBuffer = std::vector<std::vector<float>>(size.width(), std::vector<float>(size.height(), std::numeric_limits<float>::infinity()));
 
     if (isFilled) {
         // fillMesh(image);
@@ -75,14 +74,17 @@ void BezierCanvas::drawMesh(QPainter &painter) {
         painter.drawLine(p3, p1);
     }
 
-    for (const auto &triangle : pyramid.triangles) {
-        QPointF p1(triangle.vertices[0].P_after.x, triangle.vertices[0].P_after.y);
-        QPointF p2(triangle.vertices[1].P_after.x, triangle.vertices[1].P_after.y);
-        QPointF p3(triangle.vertices[2].P_after.x, triangle.vertices[2].P_after.y);
+    if (isPyramid)
+    {
+        for (const auto &triangle : pyramid.triangles) {
+            QPointF p1(triangle.vertices[0].P_after.x, triangle.vertices[0].P_after.y);
+            QPointF p2(triangle.vertices[1].P_after.x, triangle.vertices[1].P_after.y);
+            QPointF p3(triangle.vertices[2].P_after.x, triangle.vertices[2].P_after.y);
 
-        painter.drawLine(p1, p2);
-        painter.drawLine(p2, p3);
-        painter.drawLine(p3, p1);
+            painter.drawLine(p1, p2);
+            painter.drawLine(p2, p3);
+            painter.drawLine(p3, p1);
+        }
     }
 }
 
@@ -118,8 +120,7 @@ void BezierCanvas::fillMeshParallel(QImage &image) {
                     triangle.vertices[2]
                 };
 
-                // Lock image access only during fill
-                // An alternative is to use a local QImage and merge later
+                // Lock image access only during fill (not neccesary when they don't overlap)
                 {
                     // std::lock_guard<std::mutex> lock(g_imageMutex);
                     scanLineFillPolygon(image, vertices, fillColor);
@@ -141,16 +142,19 @@ void BezierCanvas::fillMeshParallel(QImage &image) {
         Qt::yellow
     };
 
-    for (int i = 0; i < pyramid.triangles.size(); i++)
-    {
-        std::vector<Vertex> vertices = {
-            pyramid.triangles[i].vertices[0],
-            pyramid.triangles[i].vertices[1],
-            pyramid.triangles[i].vertices[2]
-        };
+
+    if (isPyramid) {
+        for (int i = 0; i < pyramid.triangles.size(); i++)
+        {
+            std::vector<Vertex> vertices = {
+                pyramid.triangles[i].vertices[0],
+                pyramid.triangles[i].vertices[1],
+                pyramid.triangles[i].vertices[2]
+            };
 
 
-        scanLineFillPolygon(image, vertices, colors[i]);
+            scanLineFillPolygon(image, vertices, colors[i]);
+        }
     }
 }
 
@@ -325,13 +329,23 @@ void BezierCanvas::scanLineFillPolygon(QImage &image, const std::vector<Vertex> 
                     float z = Helpers::interpolate(triangle, interpolatedNormal, localX, localY);
                     // interpolatedNormal = interpolatedNormal * -1;
                     std::lock_guard<std::mutex> lock(zBufferMutex);
-                    if (z > zBuffer[(int) drawX][(int) drawY])
+                    if (z < zBuffer[(int) drawX][(int) drawY])
                     {
                         // std::lock_guard<std::mutex> lock(zBufferMutex);
                         zBuffer[(int) drawX][(int) drawY] = z;
 
                         Vector3 interpolatedPoint(localX, localY, z);
-                        QColor color = phongLighting.calculateColor(interpolatedNormal, interpolatedPoint, fillColor);
+                        QColor color;
+                        if (!loadedTexture)
+                        {
+                            color = phongLighting.calculateColor(interpolatedNormal, interpolatedPoint, fillColor);
+                        }
+                        else
+                        {
+                            auto uv = Helpers::interpolateUV(triangle, localX, localY);
+                            QColor textureColor = getTextureColor(uv[0], uv[1]);
+                            color = phongLighting.calculateColor(interpolatedNormal, interpolatedPoint, textureColor);
+                        }
                         image.setPixelColor(drawX, drawY, color);
                     }
                 }
@@ -343,6 +357,29 @@ void BezierCanvas::scanLineFillPolygon(QImage &image, const std::vector<Vertex> 
             edge.x += edge.dx;
         }
     }
+}
+
+QColor BezierCanvas::getTextureColor(float u, float v) const
+{
+    // If no texture was loaded, return a default color (e.g., magenta) or handle as needed
+    if (!loadedTexture || texture.isNull()) {
+        return Qt::magenta;
+    }
+
+    // Clamp the incoming texture coordinates to [0..1] to avoid out-of-bounds
+    float clampedU = std::max(0.0f, std::min(u, 1.0f));
+    float clampedV = std::max(0.0f, std::min(v, 1.0f));
+
+    // Convert clampedU and clampedV to pixel coordinates in the texture
+    int texX = static_cast<int>(clampedU * (texture.width()  - 1));
+    int texY = static_cast<int>(clampedV * (texture.height() - 1));
+
+    // Safeguard if coordinates go slightly out of valid range
+    texX = std::max(0, std::min(texX, texture.width() - 1));
+    texY = std::max(0, std::min(texY, texture.height() - 1));
+
+    // Return the pixel color at that position
+    return texture.pixelColor(texX, texY);
 }
 
 void BezierCanvas::drawInterpolatedNormals(QPainter& painter,
@@ -388,7 +425,9 @@ void BezierCanvas::updateLightPosition() {
         // phongLighting.lightPos.z = 1.0f;  // keep it slightly above, for example
         this->update();
     }
-    // pyramid.rotateMesh(5, 5);
+
+    // if (isPyramid)
+    //     pyramid.rotateMesh(5, 5);
     // this->update();
     timer->start(TIME_INTERVAL);
 }

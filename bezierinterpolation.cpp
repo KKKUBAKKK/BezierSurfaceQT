@@ -88,5 +88,6 @@ Vector3 BezierInterpolation::normal(const std::vector<Vector3>& controlPoints,
     // Cross product yields the normal
     Vector3 result = du.cross(dv);
     // printf("Normal: %f, %f, %f\n", result.x, result.y, result.z);
-    return result * -1;
+    result.normalize();
+    return result;
 }

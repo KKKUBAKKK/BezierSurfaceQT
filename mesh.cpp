@@ -16,7 +16,7 @@ void Mesh::generatePyramid()
         Vector3(-1.0, 1.0, 0.0),
         Vector3(1.0, 1.0, 0.0),
         Vector3(1.0, -1.0, 0.0),
-        Vector3(0.0, 0.0, 7.0)
+        Vector3(0.0, 0.0, -7.0)
     };
 
     for (int i = 0; i < points.size(); i++)
@@ -220,8 +220,8 @@ void Mesh::applyNormalMap(const QImage &normalMap) {
 
             // (1) Extract or compute texture coordinates for this vertex.
             //     This is just an example. Actual (u,v) depend on your model.
-            float u = vertex.u; // Must be in [0..1] range typically
-            float v = vertex.v; // Must be in [0..1] range typically
+            float u = vertex.u;
+            float v = vertex.v;
 
             // Convert (u,v) to pixel coordinates in the normal map
             int texX = static_cast<int>(u * (normalMap.width()  - 1));
@@ -238,12 +238,9 @@ void Mesh::applyNormalMap(const QImage &normalMap) {
             QColor color = normalMap.pixelColor(texX, texY);
 
             // (3) Convert color [0..255] to [-1..1] range
-            float Nx = (color.redF()   * 2.0f) - 1.0f;  // redF() in [0..1]
+            float Nx = (color.redF()   * 2.0f) - 1.0f;
             float Ny = (color.greenF() * 2.0f) - 1.0f;
             float Nz = (color.blueF()  * 2.0f) - 1.0f;
-            // Ensure Nz is positive if you want outward-facing
-            // According to the note, Blue is 128..255 => Nz is in [0..1].
-            // If it becomes negative, you can clamp or invert:
             if (Nz < 0.0f) {
                 Nz = 0.0f;
             }

@@ -2,6 +2,7 @@
 #include "triangle.h"
 #include <algorithm>
 #include <array>
+#include <stdlib.h>
 #include <cmath>
 
 // Funkcja do generowania macierzy obrotu wokół osi z
@@ -92,16 +93,17 @@ float Helpers::interpolateNormalAndZ(const Triangle &triangle,
  * @return An array [w1, w2, w3] representing the barycentric coordinates of P.
  */
 std::array<float, 3> Helpers::getBarycentricCoordinates(
-    const std::array<float, 2>& A,
-    const std::array<float, 2>& B,
-    const std::array<float, 2>& C,
-    const std::array<float, 2>& P)
+    Triangle triangle, Vector3 P)
 {
-    // Unpack coordinates for clarity
-    float Ax = A[0], Ay = A[1];
-    float Bx = B[0], By = B[1];
-    float Cx = C[0], Cy = C[1];
-    float Px = P[0], Py = P[1];
+    float Ax = triangle.vertices[0].P_after.x;
+    float Ay = triangle.vertices[0].P_after.y;
+    float Bx = triangle.vertices[1].P_after.x;
+    float By = triangle.vertices[1].P_after.y;
+    float Cx = triangle.vertices[2].P_after.x;
+    float Cy = triangle.vertices[2].P_after.y;
+
+    float Px = P.x;
+    float Py = P.y;
 
     // Compute vectors
     float v0x = Cx - Ax;
@@ -138,27 +140,24 @@ std::array<float, 3> Helpers::getBarycentricCoordinates(
     return { w1, w2, w3 };
 }
 
+std::array<float, 2> Helpers::interpolateUV(const Triangle &triangle, float x, float y)
+{
+    Vector3 P = {x, y, 0};
+    auto bar = getBarycentricCoordinates(triangle, P);
+
+    float u = bar[0] * triangle.vertices[0].u + bar[1] * triangle.vertices[1].u + bar[2] * triangle.vertices[2].u;
+    float v = bar[0] * triangle.vertices[0].v + bar[1] * triangle.vertices[1].v + bar[2] * triangle.vertices[2].v;
+
+    return {u, v};
+}
+
 float Helpers::interpolate(const Triangle &triangle, Vector3 &outNormal, float x, float y)
 {
-    // Correctly set A, B, C from each vertex's P_after.x and P_after.y
-    std::array<float, 2> A = {
-        triangle.vertices[0].P_after.x,
-        triangle.vertices[0].P_after.y
-    };
-    std::array<float, 2> B = {
-        triangle.vertices[1].P_after.x,
-        triangle.vertices[1].P_after.y
-    };
-    std::array<float, 2> C = {
-        triangle.vertices[2].P_after.x,
-        triangle.vertices[2].P_after.y
-    };
-
     // The point P where we want barycentric coords
-    std::array<float, 2> P = { x, y };
+    Vector3 P = { x, y, 0 };
 
     // Compute barycentric coordinates, returns [w1, w2, w3]
-    auto bar = getBarycentricCoordinates(A, B, C, P);
+    auto bar = getBarycentricCoordinates(triangle, P);
 
     // Use bar[2] (not bar[3], which is out of bounds)
     float z = interpolateNormalAndZ(triangle, bar[0], bar[1], bar[2], outNormal);

@@ -11,6 +11,7 @@ class BezierCanvas : public QWidget {
     Q_OBJECT
 
 public:
+    bool isPyramid = false;
     bool isVisible = true;
     bool isFilled = false;
     QColor fillColor = Qt::magenta;
@@ -20,6 +21,8 @@ public:
     QTimer* timer = new QTimer();
     QImage normalMap;
     bool loadedMap = false;
+    QImage texture;
+    bool loadedTexture = false;
     std::vector<std::vector<float>> zBuffer = std::vector<std::vector<float>>(size().width(), std::vector<float>(size().height(), std::numeric_limits<float>::min()));
     std::mutex zBufferMutex;
 
@@ -41,6 +44,7 @@ protected:
 
 private:
     void drawMesh(QPainter &painter);
+    QColor getTextureColor(float u, float v) const;
     void fillMesh(QImage &image);
     void fillMeshParallel(QImage &image);
     void drawPixel(int x, int y, QColor color, QImage &image);

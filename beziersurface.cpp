@@ -40,14 +40,14 @@ BezierSurface::BezierSurface(QWidget *parent)
 
     // Suwak do kąta alfa
     alphaSlider = new QSlider(Qt::Horizontal, this);
-    alphaSlider->setRange(-45, 45);
+    alphaSlider->setRange(-90, 90);
     alphaSlider->setValue(0);  // Domyślna wartość
     controlLayout->addWidget(new QLabel("Kąt alfa", this));
     controlLayout->addWidget(alphaSlider);
 
     // Suwak do kąta beta
     betaSlider = new QSlider(Qt::Horizontal, this);
-    betaSlider->setRange(-45, 45);
+    betaSlider->setRange(-90, 90);
     betaSlider->setValue(0);  // Domyślna wartość
     controlLayout->addWidget(new QLabel("Kąt beta", this));
     controlLayout->addWidget(betaSlider);
@@ -93,6 +93,10 @@ BezierSurface::BezierSurface(QWidget *parent)
     reflectorsCheckbox->setChecked(false);
     controlLayout->addWidget(reflectorsCheckbox);
 
+    pyramidCheckbox = new QCheckBox("Ostrosłup", this);
+    pyramidCheckbox->setChecked(false);
+    controlLayout->addWidget(pyramidCheckbox);
+
     surfaceColorBtn = new QPushButton("Kolor powierzchni", this);
     controlLayout->addWidget(surfaceColorBtn);
 
@@ -107,6 +111,18 @@ BezierSurface::BezierSurface(QWidget *parent)
     loadMapButton = new QPushButton("Wczytaj wektory normalne", this);
     connect(loadMapButton, &QPushButton::clicked, this, &BezierSurface::loadMap);
     controlLayout->addWidget(loadMapButton);
+
+    // turnOffNormalMapButton = new QPushButton("Wyłącz mapę w. norm.", this);
+    // connect(turnOffNormalMapButton, &QPushButton::clicked, this, &BezierSurface::turnOffMap);
+    // controlLayout->addWidget(turnOffNormalMapButton);
+
+    loadTextureButton = new QPushButton("Wczytaj teksturę", this);
+    connect(loadTextureButton, &QPushButton::clicked, this, &BezierSurface::loadTexture);
+    controlLayout->addWidget(loadTextureButton);
+
+    // turnOffTextureButton = new QPushButton("Wyłącz teksturę", this);
+    // connect(turnOffTextureButton, &QPushButton::clicked, this, &BezierSurface::turnOffTexture);
+    // controlLayout->addWidget(turnOffTextureButton);
 
     mainLayout->addWidget(controlPanel);
 
@@ -149,17 +165,35 @@ BezierSurface::BezierSurface(QWidget *parent)
     // Connect the fill checkbox to the fillMode slot
     connect(reflectorsCheckbox, &QCheckBox::checkStateChanged, this, &BezierSurface::updateReflectorsMode);
 
+    connect(pyramidCheckbox, &QCheckBox::checkStateChanged, this, &BezierSurface::updatePyramidMode);
+
     // Connect the load map button to the loadMap slot
     connect(loadMapButton, &QPushButton::clicked, this, &BezierSurface::loadMap);
+
+    // Connect the load texture button to the loadTexture slot
+    connect(loadTextureButton, &QPushButton::clicked, this, &BezierSurface::loadTexture);
 
     // Set default surface
     setDefaultSurface("/Users/jakubkindracki/QtProjects/BezierSurface/mesh_coordinates_0.txt");
 }
 
+// void BezierSurface::turnOffMap()
+// {
+//     bezierCanvas->loadedMap = false;
+//     bezierCanvas->mesh.generateMesh();
+//     bezierCanvas->update();
+// }
+
+// void BezierSurface::turnOffTexture()
+// {
+//     bezierCanvas->loadedTexture = false;
+//     bezierCanvas->update();
+// }
+
 // This slot updates the z value (height of light source)
 void BezierSurface::updateZ(int value)
 {
-    bezierCanvas->phongLighting.lightPos.z = value;
+    bezierCanvas->phongLighting.lightPos.z = -value;
     this->bezierCanvas->update();
 }
 
@@ -174,6 +208,12 @@ void BezierSurface::updateLightSpiralMode(int state)
 void BezierSurface::updateReflectorsMode(int state)
 {
     bezierCanvas->phongLighting.reflectors = (state == Qt::Checked);
+    this->bezierCanvas->update();
+}
+
+void BezierSurface::updatePyramidMode(int state)
+{
+    bezierCanvas->isPyramid = (state == Qt::Checked);
     this->bezierCanvas->update();
 }
 
@@ -286,6 +326,36 @@ void BezierSurface::updateBeta(int value)
     this->bezierCanvas->mesh.rotateMesh(alpha, beta);
 
     this->bezierCanvas->update();
+}
+
+void BezierSurface::loadTexture() {
+    // Open a file dialog to choose an image (texture)
+    QString QfileName = QFileDialog::getOpenFileName(
+        this,
+        "Wybierz plik z teksturą",
+        "",
+        "Image Files (*.png *.jpg *.jpeg *.bmp);;All Files (*)"
+        );
+
+    if (!QfileName.isEmpty()) {
+        // Create a QImage and load the selected file
+        QImage loadedTexture;
+        if (!loadedTexture.load(QfileName)) {
+            std::cerr << "Nie można wczytać obrazu: " << QfileName.toStdString() << std::endl;
+            return;
+        }
+
+        // Convert to a known format (ARGB) for consistency
+        loadedTexture = loadedTexture.convertToFormat(QImage::Format_ARGB32);
+
+        // Store the normal map in your application (e.g., as a member of BezierCanvas)
+        // Make sure BezierCanvas has a QImage normalMap (or similar) you can assign to
+        this->bezierCanvas->texture = loadedTexture;
+        this->bezierCanvas->loadedTexture = true;
+
+        // Optionally repaint or update to use the new normal map in your drawing
+        this->bezierCanvas->update();
+    }
 }
 
 void BezierSurface::loadMap() {

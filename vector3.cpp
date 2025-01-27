@@ -33,6 +33,11 @@ Vector3 Vector3::cross(const Vector3& other) const {
         );
 }
 
+float Vector3::dot(const Vector3 &other) const
+{
+    return x * other.x + y * other.y + z * other.z;
+}
+
 // Normalizacja
 void Vector3::normalize() {
     float length = std::sqrt(x * x + y * y + z * z);
